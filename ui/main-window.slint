@@ -107,6 +107,12 @@ export component MainWindow inherits Window {
                     // Start drawing a new line or end current line
                     if (!is-drawing) {
                         drawing-pts = [];
+
+                        if root.current-shape-type ==CanvasShapeType.Select {
+                            // Do not modify drawing state in selection mode
+                            return;
+                        }
+
                         is-drawing = true;
                         drawing-pts.push({ x: self.mouse-x, y: self.mouse-y });
                         if (should-end-drawing(root.current-shape-type, drawing-pts.length)) {
@@ -138,13 +144,15 @@ export component MainWindow inherits Window {
             }
 
             for path in root.shapes: Path {
+                property <string> path-commands: root.build_commands(path);
+
                 width: 100%;
                 height: 100%;
                 stroke: red;
                 stroke-width: 1px;
-                commands: root.build_commands(path);
+                commands: path-commands;
 
-                changed commands => {
+                changed path-commands => {
                     // Log the built path commands for debugging
                     debug("Built path commands: " + root.build_commands(path));
                 }
