@@ -41,11 +41,71 @@ fn main() {
             CanvasShapeType::Dot => num_points >= 1,
             CanvasShapeType::Line => num_points >= 2,
             CanvasShapeType::Rectangle => num_points >= 2,
-            CanvasShapeType::Select => num_points >= 2,
+            // CanvasShapeType::Select => num_points >= 2,
             _ => false,
         }
     });
 
-    // Run the event loop
+    main_window.on_bounding_box_min_pos(move |shape: CanvasShape| {
+        match shape.r#type {
+            CanvasShapeType::Dot => {
+                let x = shape.r#segments.row_data(0).unwrap().x-shape.r#stroke_width/2.0;
+                let y = shape.r#segments.row_data(0).unwrap().y-shape.r#stroke_width/2.0;
+                Point{x,y}
+            },
+            CanvasShapeType::Line => {
+                let mut starting_pt = Point{x: 0.0, y: 0.0};
+
+                // Get min x
+                if shape.r#segments.row_data(0).unwrap().x > shape.r#segments.row_data(1).unwrap().x {
+                    starting_pt.x = shape.r#segments.row_data(1).unwrap().x;
+                } else {
+                    starting_pt.x = shape.r#segments.row_data(0).unwrap().x;
+                }
+
+                // Get min y
+                if shape.r#segments.row_data(0).unwrap().y > shape.r#segments.row_data(1).unwrap().y {
+                    starting_pt.y = shape.r#segments.row_data(1).unwrap().y;
+                } else {
+                    starting_pt.y = shape.r#segments.row_data(0).unwrap().y;
+                }
+
+                starting_pt
+            },
+            _ => Point{x: 0.0, y: 0.0},
+        }
+    });
+
+    main_window.on_bounding_box_max_pos(move |shape: CanvasShape| {
+        match shape.r#type {
+            CanvasShapeType::Dot => {
+                Point{
+                    x: shape.r#segments.row_data(0).unwrap().x+shape.r#stroke_width/2.0,
+                    y: shape.r#segments.row_data(0).unwrap().y+shape.r#stroke_width/2.0,
+                }
+            },
+            CanvasShapeType::Line => {
+                let mut ending_pt: Point = Point{x: 0.0, y: 0.0};
+
+                // Get min x
+                if shape.r#segments.row_data(0).unwrap().x > shape.r#segments.row_data(1).unwrap().x {
+                    ending_pt.x = shape.r#segments.row_data(0).unwrap().x;
+                } else {
+                    ending_pt.x = shape.r#segments.row_data(1).unwrap().x;
+                }
+
+                // Get min y
+                if shape.r#segments.row_data(0).unwrap().y > shape.r#segments.row_data(1).unwrap().y {
+                    ending_pt.y = shape.r#segments.row_data(0).unwrap().y;
+                } else {
+                    ending_pt.y = shape.r#segments.row_data(1).unwrap().y;
+                }
+
+                ending_pt
+            },
+            _ => Point{x: 0.0, y: 0.0},
+        }
+    });
+
     main_window.run().unwrap();
 }

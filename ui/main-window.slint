@@ -56,6 +56,10 @@ export component MainWindow inherits Window {
     pure callback build_commands(CanvasShape) -> string;
     pure callback should-end-drawing(CanvasShapeType, int) -> bool;
 
+    // get bounding box min and max positions
+    pure callback bounding_box_min_pos(CanvasShape) -> Point;
+    pure callback bounding_box_max_pos(CanvasShape) -> Point;
+
     VerticalLayout {
         topbar := Rectangle {
             background: #ffffff;
@@ -108,11 +112,10 @@ export component MainWindow inherits Window {
                     if (!is-drawing) {
                         drawing-pts = [];
 
-                        if root.current-shape-type ==CanvasShapeType.Select {
+                        if root.current-shape-type == CanvasShapeType.Select {
                             // Do not modify drawing state in selection mode
                             return;
                         }
-
                         is-drawing = true;
                         drawing-pts.push({ x: self.mouse-x, y: self.mouse-y });
                         if (should-end-drawing(root.current-shape-type, drawing-pts.length)) {
@@ -143,18 +146,48 @@ export component MainWindow inherits Window {
                 }
             }
 
-            for path in root.shapes: Path {
-                property <string> path-commands: root.build_commands(path);
+            for shape in root.shapes: Rectangle {
+                // Bounding box for the shape
+                x: self.bounding-box-min.x;
+                y: self.bounding-box-min.y;
 
-                width: 100%;
-                height: 100%;
-                stroke: red;
-                stroke-width: 1px;
-                commands: path-commands;
+                border-width: is-selected || is-drawing ? 1px : 0;
+                border-color: #ccc;
 
-                changed path-commands => {
+                width: self.bounding-box-max.x - self.bounding-box-min.x;
+                height: self.bounding-box-max.y - self.bounding-box-min.y;
+
+                property <bool> is-selected: false;
+                property <Point> bounding-box-min: root.bounding_box_min_pos(shape);
+                property <Point> bounding-box-max: root.bounding_box_max_pos(shape);
+                
+                p := Path {
+                    property <string> path-commands: root.build_commands(shape);
+
+                    // Calculate the bounding box for the shape to determine its position and size
+                    x: 0px;
+                    y: 0px;
+
+                    width: 100%;
+                    height: 100%;
+                    stroke: shape.stroke_color;
+                    stroke-width: shape.stroke_width;
+                    commands: path-commands;
+
+                    changed path-commands => {
                     // Log the built path commands for debugging
-                    debug("Built path commands: " + root.build_commands(path));
+                    debug("Built path commands: " + root.build_commands(shape));
+                    }
+                }
+
+                // Draw all points
+                for pt in shape.segments: Rectangle {
+                    x: pt.x;
+                    y: pt.y;
+                    width: 6px; // shape.stroke-width;
+                    height: self.width;
+                    background: shape.stroke-color;
+                    border-radius: 3px; //shape.stroke-width/2.0;
                 }
             }
         }
