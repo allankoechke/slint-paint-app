@@ -1,0 +1,154 @@
+import { Button } from "std-widgets.slint";
+
+// Represent an x,y point on canvas
+export struct Point {
+    x: length,
+    y: length,
+}
+
+// Represent a shape type enumeration
+export enum CanvasShapeType { Select, Dot, Line, Rectangle, Circle, Oval, Arc, Polygon }
+
+// Represent a shape and its related data
+export struct CanvasShape {
+    type: CanvasShapeType,
+    segments: [Point],
+    stroke_color: color,
+    fill_color: color,
+    stroke_width: length,
+    is_closed: bool,
+}
+
+component CanvasButton inherits Rectangle {
+    in property <string> id;
+    in property <string> label;
+    in-out property <bool> toggled: false;
+    in property <bool> enabled: true;
+
+    callback clicked <=> ta.clicked;
+
+    background: enabled ? (toggled ? #cccccc : #ffffff) : #f0f0f0;
+    border-radius: 5px;
+
+    ta := TouchArea {
+        clicked => { if enabled { toggled = !toggled; } }
+    }
+
+    Text {
+        text: label;
+        color: enabled ? toggled ? #000000 : #888888 : #cccccc;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-weight: enabled && toggled ? FontWeight.bold : FontWeight.normal;
+    }
+}
+
+export component MainWindow inherits Window {
+    width: 720px;
+    height: 480px;
+
+    // Canvas model
+    property <[CanvasShape]> shapes: [];
+    property <CanvasShapeType> current-shape-type: CanvasShapeType.Select;
+    property <bool> tools-enabled: true;
+
+    // Build the path commands for a given shape
+    pure callback build_commands(CanvasShape) -> string;
+    pure callback should-end-drawing(CanvasShapeType, int) -> bool;
+
+    VerticalLayout {
+        topbar := Rectangle {
+            background: #ffffff;
+            height: 50px;
+            border-width: 1px;
+
+            HorizontalLayout {
+                spacing: 10px;
+                padding: 5px;
+
+                CanvasButton {
+                    label: "Select";
+                    toggled: root.current-shape-type == CanvasShapeType.Select;
+                    clicked => { root.current-shape-type = CanvasShapeType.Select; }
+                    enabled: root.tools-enabled;
+                }
+
+                CanvasButton {
+                    label: "Dot";
+                    toggled: root.current-shape-type == CanvasShapeType.Dot;
+                    clicked => { root.current-shape-type = CanvasShapeType.Dot; }
+                    enabled: root.tools-enabled;
+                }
+
+                CanvasButton {
+                    label: "Line";
+                    toggled: root.current-shape-type == CanvasShapeType.Line;
+                    clicked => { root.current-shape-type = CanvasShapeType.Line; }
+                    enabled: root.tools-enabled;
+                }
+
+                CanvasButton {
+                    label: "Rectangle";
+                    toggled: root.current-shape-type == CanvasShapeType.Rectangle;
+                    clicked => { root.current-shape-type = CanvasShapeType.Rectangle; }
+                    enabled: root.tools-enabled;
+                }
+            }
+        }
+
+        canvas := Rectangle {
+            background: #ffffff;
+
+            property <[Point]> drawing-pts: [];
+            property <bool> is-drawing: false;
+
+            cta := TouchArea {
+                clicked => {
+                    // Start drawing a new line or end current line
+                    if (!is-drawing) {
+                        drawing-pts = [];
+                        is-drawing = true;
+                        drawing-pts.push({ x: self.mouse-x, y: self.mouse-y });
+                        if (should-end-drawing(root.current-shape-type, drawing-pts.length)) {
+                            is-drawing = false;
+                            root.shapes.push({
+                                type: root.current-shape-type,
+                                segments: drawing-pts,
+                                stroke_color: #000000,
+                                fill_color: #ffffff,
+                                stroke_width: 2px,
+                                is_closed: false
+                            });
+                        }
+                    } else {
+                        drawing-pts.push({ x: self.mouse-x, y: self.mouse-y });
+                        if (should-end-drawing(root.current-shape-type, drawing-pts.length)) {
+                            is-drawing = false;
+                            root.shapes.push({
+                                type: root.current-shape-type,
+                                segments: drawing-pts,
+                                stroke_color: #000000,
+                                fill_color: #ffffff,
+                                stroke_width: 2px,
+                                is_closed: false
+                            });
+                        }
+                    }
+                }
+            }
+
+            for path in root.shapes: Path {
+                width: 100%;
+                height: 100%;
+                stroke: red;
+                stroke-width: 1px;
+                commands: root.build_commands(path);
+
+                changed commands => {
+                    // Log the built path commands for debugging
+                    debug("Built path commands: " + root.build_commands(path));
+                }
+            }
+        }
+    }
+}
